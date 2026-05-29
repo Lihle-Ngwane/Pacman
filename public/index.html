@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PAC-MAN</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#111; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; font-family:monospace; }
+    #game-container canvas { display:block; image-rendering:pixelated; }
+    #footer { margin-top:8px; color:#333; font-size:10px; letter-spacing:1px; }
+  </style>
+</head>
+<body>
+  <div id="game-container"></div>
+  <div id="footer">1P: W A S D / ARROWS &nbsp;|&nbsp; 2P: ONLINE</div>
+
+  <!-- Phaser -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+  <!-- Socket.io client — loaded from our own server -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Game files -->
+  <script src="js/config.js"></script>
+  <script src="js/systems/AudioManager.js"></script>
+  <script src="js/systems/MazeGenerator.js"></script>
+  <script src="js/systems/PlayerTracker.js"></script>
+  <script src="js/systems/LeaderboardService.js"></script>
+  <script src="js/entities/PacMan.js"></script>
+  <script src="js/entities/Ghost.js"></script>
+  <script src="js/scenes/PreloadScene.js"></script>
+  <script src="js/scenes/MenuScene.js"></script>
+  <script src="js/scenes/GameScene.js"></script>
+  <script src="js/scenes/UIScene.js"></script>
+  <script src="js/scenes/NetworkGameScene.js"></script>
+  <script src="js/scenes/NetworkUIScene.js"></script>
+  <script src="js/scenes/EndScenes.js"></script>
+  <script src="js/scenes/LeaderboardScene.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
