@@ -1,4 +1,8 @@
-
+// ============================================================
+// scenes/NetworkUIScene.js
+// HUD for online multiplayer — mirrors UIScene but listens to
+// NetworkGameScene events instead of GameScene events.
+// ============================================================
 
 class NetworkUIScene extends Phaser.Scene {
   constructor() { super({ key: 'NetworkUIScene' }); }

@@ -1,4 +1,26 @@
-
+// ============================================================
+// systems/LeaderboardService.js
+// Online leaderboard via Supabase + localStorage fallback.
+//
+// SUPABASE SETUP (one-time, ~10 minutes):
+// 1. Go to supabase.com → New project (free tier)
+// 2. Go to SQL Editor → New query → paste and run this SQL:
+//
+//    create table scores (
+//      id         bigserial primary key,
+//      name       text not null,
+//      score      integer not null,
+//      level      integer not null,
+//      mode       text not null,
+//      created_at timestamp default now()
+//    );
+//    alter table scores enable row level security;
+//    create policy "allow_read"   on scores for select using (true);
+//    create policy "allow_insert" on scores for insert with check (true);
+//
+// 3. Go to Project Settings → API → copy URL and anon key
+// 4. Paste them into SUPABASE_URL and SUPABASE_KEY in config.js
+// ============================================================
 
 class LeaderboardService {
 

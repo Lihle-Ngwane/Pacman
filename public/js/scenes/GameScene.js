@@ -1,4 +1,8 @@
-
+// ============================================================
+// scenes/GameScene.js
+// Integrates: procedural maze, adaptive AI, 3 power-up types,
+// player tracker, and both normal + multiplayer modes.
+// ============================================================
 
 class GameScene extends Phaser.Scene {
   constructor() { super({ key: 'GameScene' }); }
@@ -463,6 +467,12 @@ class GameScene extends Phaser.Scene {
     }
     this.time.delayedCall(600, () => {
       const pac = playerIndex===0 ? this.player : this.player2;
+      // Kill any active death tween and destroy the old sprite cleanly
+      this.tweens.killTweensOf(pac.sprite);
+      pac.sprite.destroy();
+      // Create fresh sprite via reset
+      pac.sprite = this.add.image(pac.x, pac.y, 'pac_open').setDepth(6);
+      if (playerIndex === 1) pac.sprite.setTint(0x00ffff);
       pac.reset();
       this.ghosts.forEach(g => g.sprite.setAlpha(1));
       this._resetGhosts();

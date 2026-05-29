@@ -1,4 +1,7 @@
-
+// ============================================================
+// server.js — Pac-Man multiplayer server
+// Serves client files + runs Socket.io game server
+// ============================================================
 
 const express    = require('express');
 const http       = require('http');
@@ -279,7 +282,7 @@ class Room {
 
   _movePlayers(dt){
     for(const p of this.players){
-      if(!p.alive) continue;
+      if(!p.alive || p.eliminated) continue;
       if(p.moving){
         const tx=p.tileX*TILE+TILE/2, ty=p.tileY*TILE+TILE/2;
         const dist=p.speed*dt;
@@ -427,21 +430,36 @@ class Room {
   }
 
   _kill(p){
-    p.alive=false; this.lives[p.index]--;
+    p.alive=false;
+    p.eliminated=false; // will be set true if lives reach 0
+    this.lives[p.index]--;
     this.sockets.forEach(sid=>{ if(sid) io.to(sid).emit('playerDied',{index:p.index}); });
+
     if(this.lives[p.index]<=0){
-      // Check if both out
-      const anyLeft=this.players.some(pl=>this.lives[pl.index]>0||pl.alive);
-      if(!anyLeft){
+      // This player is fully eliminated
+      p.eliminated=true;
+      this.sockets.forEach(sid=>{
+        if(sid) io.to(sid).emit('playerEliminated',{index:p.index});
+      });
+
+      // Check if ALL players are eliminated
+      const allGone=this.players.every(pl=>pl.eliminated);
+      if(allGone){
         this.stop();
         this.sockets.forEach((sid,i)=>{
-          if(sid) io.to(sid).emit('gameOver',{scores:this.scores,level:this.level,myIndex:i});
+          if(sid) io.to(sid).emit('gameOver',{
+            scores:this.scores, level:this.level, myIndex:i
+          });
         });
-        return;
       }
+      // If only one eliminated, other player continues — no respawn for this player
+      return;
     }
+
+    // Still has lives — respawn after 2 seconds
     setTimeout(()=>{
       if(this.state!=='playing') return;
+      if(p.eliminated) return; // safety check
       p.alive=true;
       const st=p.index===0?PAC_START:P2_START;
       p.tileX=st.x; p.tileY=st.y;
@@ -515,7 +533,8 @@ class Room {
   _serialize(){
     return {
       p: this.players.map(p=>[
-        Math.round(p.x), Math.round(p.y), p.dx, p.dy, p.alive?1:0
+        Math.round(p.x), Math.round(p.y), p.dx, p.dy,
+        p.alive?1:0, p.eliminated?1:0
       ]),
       g: this.ghosts.map(g=>[
         Math.round(g.x), Math.round(g.y),
@@ -535,7 +554,7 @@ class Room {
       index:i, tileX:s.x, tileY:s.y,
       x:s.x*TILE+TILE/2, y:s.y*TILE+TILE/2,
       dx:i===0?-1:1, dy:0, ndx:i===0?-1:1, ndy:0,
-      moving:false, alive:true, speed:SPEED_V.pac
+      moving:false, alive:true, eliminated:false, speed:SPEED_V.pac
     }));
   }
 

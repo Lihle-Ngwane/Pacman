@@ -1,3 +1,6 @@
+// ============================================================
+// scenes/LeaderboardScene.js — online via Supabase, localStorage fallback
+// ============================================================
 
 class LeaderboardScene extends Phaser.Scene {
   constructor() { super({ key: 'LeaderboardScene' }); }

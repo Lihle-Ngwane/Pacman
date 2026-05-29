@@ -1,3 +1,6 @@
+// ============================================================
+// scenes/PreloadScene.js — adds 3 new power-up textures
+// ============================================================
 
 class PreloadScene extends Phaser.Scene {
   constructor() { super({ key: 'PreloadScene' }); }

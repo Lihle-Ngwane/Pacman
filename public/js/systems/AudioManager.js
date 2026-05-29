@@ -1,4 +1,16 @@
-
+// ============================================================
+// systems/AudioManager.js
+//
+// EDM BACKGROUND MUSIC
+// Built entirely with Web Audio API — no files needed.
+// Uses a 16-step sequencer at 126 BPM running a classic
+// four-on-the-floor pattern: kick, snare, hi-hat, bass, lead.
+//
+// CUSTOM GAME OVER SOUND
+// Place your file at: public/audio/gameover.mp3
+// The game loads it automatically. If missing it falls back
+// to the built-in procedural death sequence.
+// ============================================================
 
 class AudioManager {
 

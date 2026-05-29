@@ -1,4 +1,8 @@
-
+// ============================================================
+// scenes/UIScene.js
+// Lives fix: setAlpha instead of destroy/recreate.
+// Added: power-up active indicator.
+// ============================================================
 
 class UIScene extends Phaser.Scene {
   constructor() { super({ key: 'UIScene' }); }

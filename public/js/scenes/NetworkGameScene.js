@@ -1,4 +1,8 @@
-
+// ============================================================
+// scenes/NetworkGameScene.js
+// Online multiplayer — connects via Socket.io.
+// Server sends compact state. Client renders + plays sounds.
+// ============================================================
 
 class NetworkGameScene extends Phaser.Scene {
   constructor() { super({ key: 'NetworkGameScene' }); }
@@ -15,6 +19,14 @@ class NetworkGameScene extends Phaser.Scene {
     this._ghostSprites = [];
     this._lastDirX    = 0;
     this._lastDirY    = 0;
+    // Client side prediction state
+    this._predX       = 0;
+    this._predY       = 0;
+    this._predDirX    = -1;
+    this._predDirY    = 0;
+    this._predMoving  = false;
+    this._predicting  = false;
+    this._eliminated  = false;  // this device's player is eliminated
     this._roomCode    = '';
     this._joinInput   = '';
     this._uiGroup     = null;
@@ -51,8 +63,9 @@ class NetworkGameScene extends Phaser.Scene {
   update(time, delta) {
     if (this._phase !== 'playing') return;
     this._sendInput();
-    // Animate pac-man mouth every frame
     this._animatePac(delta);
+    // Client side prediction — move our player locally every frame
+    if (!this._eliminated) this._predictMove(delta / 1000);
   }
 
   // ---- ANIMATION ----
@@ -157,6 +170,29 @@ class NetworkGameScene extends Phaser.Scene {
       this._showError('Opponent disconnected.', true);
     });
 
+    this._socket.on('playerEliminated', ({ index }) => {
+      const isMe = index === this._myIndex;
+      if (isMe) {
+        // Show eliminated overlay — but keep watching
+        this._eliminated = true;
+        this._predicting  = false;
+        const W = GAME_W, H = TOTAL_H;
+        const overlay = this.add.rectangle(W/2, H/2, W, 60, 0x000000, 0.85)
+          .setDepth(80);
+        this.add.text(W/2, H/2, 'YOU HAVE BEEN ELIMINATED  —  WATCHING...', {
+          fontSize:'11px', fontFamily:'monospace', color:'#ff4444'
+        }).setOrigin(0.5).setDepth(81);
+      } else {
+        // Opponent eliminated — show notice
+        const W = GAME_W;
+        const notice = this.add.text(W/2, UI_H + 30, 'OPPONENT ELIMINATED', {
+          fontSize:'12px', fontFamily:'monospace', color:'#00ffff'
+        }).setOrigin(0.5).setDepth(81);
+        this.tweens.add({ targets: notice, alpha: 0, duration: 3000,
+          onComplete: () => notice.destroy() });
+      }
+    });
+
     this._socket.on('newLevel', ({ level, maze }) => {
       this._maze = maze;
       this._rebuildDots();
@@ -176,8 +212,81 @@ class NetworkGameScene extends Phaser.Scene {
 
     if (dx !== this._lastDirX || dy !== this._lastDirY) {
       this._lastDirX = dx; this._lastDirY = dy;
+      // Queue direction for prediction
+      this._predNextDirX = dx;
+      this._predNextDirY = dy;
       this._socket?.emit('playerInput', { dirX: dx, dirY: dy });
     }
+  }
+
+  // ---- CLIENT SIDE PREDICTION ----
+  // Move our own player locally every frame without waiting for server.
+  // Server state corrects us if we drift more than half a tile.
+
+  _predictMove(dt) {
+    if (!this._maze || !this._predicting) return;
+    const mySpr = this._myIndex === 0 ? this._p1Sprite : this._p2Sprite;
+    if (!mySpr?.active) return;
+
+    const speed = 135; // match server pac speed
+
+    // Try queued direction first
+    const ndx = this._predNextDirX || 0;
+    const ndy = this._predNextDirY || 0;
+
+    if (!this._predMoving) {
+      if (ndx !== 0 || ndy !== 0) {
+        const nx = this._predTileX + ndx;
+        const ny = this._predTileY + ndy;
+        if (this._mazeWalkable(nx, ny)) {
+          this._predDirX = ndx; this._predDirY = ndy;
+          this._predMoving = true;
+        }
+      }
+      if (!this._predMoving) {
+        const cx = this._predTileX + this._predDirX;
+        const cy = this._predTileY + this._predDirY;
+        if (this._mazeWalkable(cx, cy)) this._predMoving = true;
+      }
+    }
+
+    if (this._predMoving) {
+      const targetX = this._predTileX * TILE + TILE / 2;
+      const targetY = this._predTileY * TILE + TILE / 2;
+      const dist    = speed * dt;
+      const dx = targetX - this._predX;
+      const dy = targetY - this._predY;
+      const total = Math.abs(dx) + Math.abs(dy);
+
+      if (dist >= total) {
+        this._predTileX += this._predDirX;
+        this._predTileY += this._predDirY;
+        // Tunnel wrap
+        if (this._predTileY === TUNNEL_ROW) {
+          if (this._predTileX < 0)     this._predTileX = COLS - 1;
+          if (this._predTileX >= COLS) this._predTileX = 0;
+        }
+        this._predX = this._predTileX * TILE + TILE / 2;
+        this._predY = this._predTileY * TILE + TILE / 2;
+        this._predMoving = false;
+      } else {
+        const r = dist / total;
+        this._predX += dx * r;
+        this._predY += dy * r;
+      }
+    }
+
+    // Render predicted position
+    mySpr.setPosition(this._predX, this._predY + UI_H);
+    this._rotateSprite(mySpr, this._predDirX, this._predDirY);
+  }
+
+  _mazeWalkable(tx, ty) {
+    if (!this._maze) return false;
+    if (ty === TUNNEL_ROW && (tx < 0 || tx >= COLS)) return true;
+    if (tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS) return false;
+    const t = this._maze[ty][tx];
+    return t !== T_WALL && t !== T_DOOR;
   }
 
   // ---- RENDER COMPACT STATE ----
@@ -186,16 +295,59 @@ class NetworkGameScene extends Phaser.Scene {
     const { p, g, sc, lv, fr, mi } = state;
     const GHOST_TYPE_NAMES = ['blinky','pinky','inky','clyde'];
 
-    // Players
-    if (p[0] && this._p1Sprite?.active) {
-      this._p1Sprite.setPosition(p[0][0], p[0][1] + UI_H)
-        .setAlpha(p[0][4] ? 1 : 0.2);
-      this._rotateSprite(this._p1Sprite, p[0][2], p[0][3]);
+    // Players — use server position for opponent, prediction handles our own player
+    const myIdx  = this._myIndex;
+    const oppIdx = myIdx === 0 ? 1 : 0;
+
+    // Own player — initialise prediction from server on first packet or after respawn
+    if (p[myIdx]) {
+      const pd = p[myIdx];
+      const eliminated = pd[5] === 1;
+      if (eliminated && !this._eliminated) {
+        this._eliminated = true;
+        this._predicting = false;
+      }
+      if (!this._predicting && pd[4] === 1 && !eliminated) {
+        // Start prediction from server position
+        this._predX      = pd[0];
+        this._predY      = pd[1];
+        this._predTileX  = Math.round((pd[0] - TILE/2) / TILE);
+        this._predTileY  = Math.round((pd[1] - TILE/2) / TILE);
+        this._predDirX   = pd[2] || -1;
+        this._predDirY   = pd[3] || 0;
+        this._predNextDirX = pd[2] || -1;
+        this._predNextDirY = pd[3] || 0;
+        this._predMoving = false;
+        this._predicting = true;
+      }
+      // Soft correction — if server says we are more than 12px away, snap
+      if (this._predicting && pd[4] === 1) {
+        const drift = Math.hypot(this._predX - pd[0], this._predY - pd[1]);
+        if (drift > 12) {
+          this._predX     = pd[0];
+          this._predY     = pd[1];
+          this._predTileX = Math.round((pd[0] - TILE/2) / TILE);
+          this._predTileY = Math.round((pd[1] - TILE/2) / TILE);
+          this._predMoving = false;
+        }
+      }
+      // Show own player at predicted position (handled in update/_predictMove)
+      // Just set alpha based on alive state
+      const ownSpr = myIdx === 0 ? this._p1Sprite : this._p2Sprite;
+      if (ownSpr?.active) {
+        ownSpr.setAlpha(pd[4] ? 1 : 0.15);
+        if (eliminated) ownSpr.setAlpha(0);
+      }
     }
-    if (p[1] && this._p2Sprite?.active) {
-      this._p2Sprite.setPosition(p[1][0], p[1][1] + UI_H)
-        .setAlpha(p[1][4] ? 1 : 0.2);
-      this._rotateSprite(this._p2Sprite, p[1][2], p[1][3]);
+
+    // Opponent — always use server position directly
+    if (p[oppIdx]) {
+      const pd  = p[oppIdx];
+      const spr = oppIdx === 0 ? this._p1Sprite : this._p2Sprite;
+      if (spr?.active) {
+        spr.setPosition(pd[0], pd[1] + UI_H).setAlpha(pd[4] ? 1 : pd[5] ? 0 : 0.2);
+        this._rotateSprite(spr, pd[2], pd[3]);
+      }
     }
 
     // Ghosts
@@ -243,7 +395,16 @@ class NetworkGameScene extends Phaser.Scene {
   // ---- MAZE ----
 
   _buildMaze() {
-    if (this._mazeGfx) this._mazeGfx.destroy();
+    // Destroy old maze graphics to prevent stacking
+    if (this._mazeGfx) { this._mazeGfx.destroy(); this._mazeGfx = null; }
+    // Destroy any leftover dot sprites
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++)
+        if (this._dotsGrid[r]?.[c]) {
+          this.tweens.killTweensOf(this._dotsGrid[r][c]);
+          this._dotsGrid[r][c].destroy();
+          this._dotsGrid[r][c] = null;
+        }
     this._mazeGfx = this.add.graphics().setDepth(0);
     const gfx = this._mazeGfx, maze = this._maze;
 
@@ -302,6 +463,12 @@ class NetworkGameScene extends Phaser.Scene {
   }
 
   _buildEntitySprites() {
+    // Destroy any existing sprites first to prevent ghosting
+    if (this._p1Sprite) { this._p1Sprite.destroy(); this._p1Sprite = null; }
+    if (this._p2Sprite) { this._p2Sprite.destroy(); this._p2Sprite = null; }
+    this._ghostSprites.forEach(s => { if (s) s.destroy(); });
+    this._ghostSprites = [];
+
     this._p1Sprite = this.add.image(
       PAC_START.x*TILE+TILE/2, PAC_START.y*TILE+TILE/2+UI_H, 'pac_open'
     ).setDepth(6).setAngle(180);
@@ -317,7 +484,7 @@ class NetworkGameScene extends Phaser.Scene {
       fontSize:'8px', fontFamily:'monospace', color:myColor
     }).setOrigin(0.5).setDepth(50);
 
-    // Ghost sprites — 4 ghosts in server order
+    // Ghost sprites
     this._ghostSprites = GHOST_TYPES.map(type => {
       const s = GHOST_START[type];
       return this.add.image(
@@ -489,6 +656,11 @@ class NetworkGameScene extends Phaser.Scene {
       this._emit('level',  1);
     });
 
+    // Reset prediction state for new game
+    this._eliminated   = false;
+    this._predicting   = false;
+    this._predNextDirX = -1;
+    this._predNextDirY = 0;
     this._audio?.startMusic();
 
     const countTxt=this.add.text(W/2,H/2,'3',{

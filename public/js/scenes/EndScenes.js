@@ -1,3 +1,6 @@
+// ============================================================
+// scenes/EndScenes.js — saves to Supabase via LeaderboardService
+// ============================================================
 
 class GameOverScene extends Phaser.Scene {
   constructor() { super({ key: 'GameOverScene' }); }
