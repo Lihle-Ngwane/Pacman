@@ -250,7 +250,7 @@ class Room {
     this._initPlayers();
     this._initGhosts();
     this._last    = Date.now();
-    this._interval = setInterval(()=>this._tick(), 33);
+    this._interval = setInterval(()=>this._tick(), 20);
   }
 
   input(idx, dx, dy){
