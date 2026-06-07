@@ -341,10 +341,10 @@ class NetworkGameScene extends Phaser.Scene {
         this._predY      = pd[1];
         this._predTileX  = Math.round((pd[0] - TILE/2) / TILE);
         this._predTileY  = Math.round((pd[1] - TILE/2) / TILE);
-        this._predDirX   = pd[2] || -1;
-        this._predDirY   = pd[3] || 0;
-        this._predNextDirX = pd[2] || -1;
-        this._predNextDirY = pd[3] || 0;
+        this._predDirX   = pd[2] !== undefined ? pd[2] : -1;
+        this._predDirY   = pd[3] !== undefined ? pd[3] : 0;
+        this._predNextDirX = pd[2] !== undefined ? pd[2] : -1;
+        this._predNextDirY = pd[3] !== undefined ? pd[3] : 0;
         this._predMoving = false;
         this._predicting = true;
       }
@@ -691,6 +691,12 @@ class NetworkGameScene extends Phaser.Scene {
     this._phase='countdown'; this._clearUI();
     this.input.keyboard.off('keydown',this._onLobbyKey,this);
 
+    // Reset state BEFORE building sprites so _buildEntitySprites sets correct values
+    this._eliminated   = false;
+    this._predicting   = false;
+    this._predNextDirX = 0;
+    this._predNextDirY = 0;
+
     this._buildMaze();
     this._buildEntitySprites();
 
@@ -707,11 +713,6 @@ class NetworkGameScene extends Phaser.Scene {
       this._emit('level',  1);
     });
 
-    // Reset prediction state for new game
-    this._eliminated   = false;
-    this._predicting   = false;
-    this._predNextDirX = -1;
-    this._predNextDirY = 0;
     this._audio?.startMusic();
 
     const countTxt=this.add.text(W/2,H/2,'3',{
