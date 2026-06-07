@@ -1,8 +1,4 @@
-// ============================================================
-// scenes/NetworkGameScene.js
-// Online multiplayer — connects via Socket.io.
-// Server sends compact state. Client renders + plays sounds.
-// ============================================================
+
 
 class NetworkGameScene extends Phaser.Scene {
   constructor() { super({ key: 'NetworkGameScene' }); }
@@ -30,8 +26,9 @@ class NetworkGameScene extends Phaser.Scene {
     // Opponent interpolation state
     this._oppRenderX    = 0;
     this._oppRenderY    = 0;
-    this._oppTargetX    = 0;
-    this._oppTargetY    = 0;
+    this._oppServerX    = 0;
+    this._oppServerY    = 0;
+    this._oppServerTime = 0;
     this._oppAlive      = true;
     this._oppEliminated = false;
     this._oppDirX       = 1;
@@ -85,19 +82,23 @@ class NetworkGameScene extends Phaser.Scene {
     const spr    = oppIdx === 0 ? this._p1Sprite : this._p2Sprite;
     if (!spr?.active) return;
 
-    // Lerp render position toward server target — 0.25 per frame at 60fps
-    // gives smooth movement without lag feeling
-    const LERP = 0.25;
-    this._oppRenderX += (this._oppTargetX - this._oppRenderX) * LERP;
-    this._oppRenderY += (this._oppTargetY - this._oppRenderY) * LERP;
+    // Dead reckoning: extrapolate opponent position forward from last server
+    // snapshot using their confirmed direction and speed. This compensates
+    // for the 59ms network delay and makes the opponent look like they are
+    // actually moving instead of sliding behind.
+    const speed   = 135;
+    const elapsed = Math.min((performance.now() - this._oppServerTime) / 1000, 0.15);
+    const extrapX = this._oppServerX + this._oppDirX * speed * elapsed;
+    const extrapY = this._oppServerY + this._oppDirY * speed * elapsed;
 
-    // Snap if very close to avoid infinite tiny drift
-    if (Math.abs(this._oppRenderX - this._oppTargetX) < 0.5) this._oppRenderX = this._oppTargetX;
-    if (Math.abs(this._oppRenderY - this._oppTargetY) < 0.5) this._oppRenderY = this._oppTargetY;
+    // Lerp render position toward extrapolated position
+    const LERP = 0.35;
+    this._oppRenderX += (extrapX - this._oppRenderX) * LERP;
+    this._oppRenderY += (extrapY - this._oppRenderY) * LERP;
 
     spr.setPosition(this._oppRenderX, this._oppRenderY + UI_H);
     spr.setAlpha(this._oppAlive ? 1 : this._oppEliminated ? 0 : 0.2);
-    if (this._oppDirX !== undefined) this._rotateSprite(spr, this._oppDirX, this._oppDirY);
+    this._rotateSprite(spr, this._oppDirX, this._oppDirY);
   }
 
   // ---- ANIMATION ----
@@ -372,15 +373,22 @@ class NetworkGameScene extends Phaser.Scene {
       }
     }
 
-    // Opponent — store server position as target, interpolation runs in update
+    // Opponent — store server snapshot with timestamp for dead reckoning
     if (p[oppIdx]) {
       const pd = p[oppIdx];
-      this._oppTargetX   = pd[0];
-      this._oppTargetY   = pd[1];
-      this._oppAlive     = pd[4];
+      this._oppServerX    = pd[0];
+      this._oppServerY    = pd[1];
+      this._oppServerTime = performance.now();
+      this._oppAlive      = pd[4];
       this._oppEliminated = pd[5] === 1;
-      this._oppDirX      = pd[2];
-      this._oppDirY      = pd[3];
+      this._oppDirX       = pd[2] !== undefined ? pd[2] : this._oppDirX;
+      this._oppDirY       = pd[3] !== undefined ? pd[3] : this._oppDirY;
+      // Snap render position if too far off to avoid rubber banding
+      const snapDist = Math.hypot(this._oppRenderX - pd[0], this._oppRenderY - pd[1]);
+      if (snapDist > TILE * 2) {
+        this._oppRenderX = pd[0];
+        this._oppRenderY = pd[1];
+      }
     }
 
     // Ghosts
@@ -525,12 +533,13 @@ class NetworkGameScene extends Phaser.Scene {
     this._predMoving   = false;
     this._predicting   = true;
 
-    // Initialise opponent interpolation targets at opponent start position
+    // Initialise opponent state at opponent start position
     const oppStart = this._myIndex === 0 ? P2_START : PAC_START;
-    this._oppRenderX = oppStart.x * TILE + TILE / 2;
-    this._oppRenderY = oppStart.y * TILE + TILE / 2;
-    this._oppTargetX = this._oppRenderX;
-    this._oppTargetY = this._oppRenderY;
+    this._oppRenderX    = oppStart.x * TILE + TILE / 2;
+    this._oppRenderY    = oppStart.y * TILE + TILE / 2;
+    this._oppServerX    = this._oppRenderX;
+    this._oppServerY    = this._oppRenderY;
+    this._oppServerTime = performance.now();
 
     // "You are" label
     const myColor = this._myIndex===0?'#ffd700':'#00ffff';
