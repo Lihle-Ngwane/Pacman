@@ -1,3 +1,7 @@
+// ============================================================
+// server.js — Pac-Man multiplayer server
+// Serves client files + runs Socket.io game server
+// ============================================================
 
 const express    = require('express');
 const http       = require('http');
@@ -600,7 +604,12 @@ io.on('connection', socket => {
     // Generate maze and send to both players
     const maze=new MazeGenerator().generate();
     room.maze=maze;
-    io.to(code).emit('gameStart',{maze,playerIndex:pIdx});
+    // Send gameStart to each socket individually with THEIR OWN correct index.
+    // Sending io.to(code) with a single playerIndex would overwrite player 0's
+    // index with player 1's, making both clients think they are the same player.
+    room.sockets.forEach((sid, i) => {
+      if(sid) io.to(sid).emit('gameStart',{maze,playerIndex:i});
+    });
 
     // Start game after countdown
     setTimeout(()=>{ if(rooms[code]) rooms[code].start(); },3200);
