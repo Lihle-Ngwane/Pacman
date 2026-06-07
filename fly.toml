@@ -1,7 +1,8 @@
-app = "pacman-game"
+app = "pacman"
 primary_region = "jnb"
 
 [build]
+  dockerfile = "Dockerfile"
 
 [http_service]
   internal_port = 3000
