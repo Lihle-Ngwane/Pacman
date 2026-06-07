@@ -1,3 +1,4 @@
+
 const express    = require('express');
 const http       = require('http');
 const { Server } = require('socket.io');
@@ -27,7 +28,7 @@ const T_REVEAL   = 7;
 
 const GHOST_TYPES = ['blinky','pinky','inky','clyde'];
 const PAC_START   = { x:13, y:23 };
-const P2_START    = { x:14, y:23 };
+const P2_START    = { x:21, y:23 };
 const GHOST_START = {
   blinky:{x:13,y:11}, pinky:{x:13,y:13}, inky:{x:11,y:14}, clyde:{x:15,y:14}
 };
@@ -125,6 +126,7 @@ class MazeGenerator {
 
   _fixSpawns(grid){
     for(let r=22;r<=24;r++) for(let c=12;c<=15;c++) grid[r][c]=T_EMPTY;
+    for(let r=22;r<=24;r++) for(let c=20;c<=23;c++) grid[r][c]=T_EMPTY;
     grid[11][13]=T_EMPTY;
   }
 

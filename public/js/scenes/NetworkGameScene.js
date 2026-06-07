@@ -1,4 +1,8 @@
-
+// ============================================================
+// scenes/NetworkGameScene.js
+// Online multiplayer — connects via Socket.io.
+// Server sends compact state. Client renders + plays sounds.
+// ============================================================
 
 class NetworkGameScene extends Phaser.Scene {
   constructor() { super({ key: 'NetworkGameScene' }); }

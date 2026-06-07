@@ -1,5 +1,4 @@
 
-
 const TILE       = 20;
 const COLS       = 28;
 const ROWS       = 30;
@@ -44,7 +43,7 @@ const GHOST_EXIT_DOTS = {
 
 // Fixed spawn tiles — generator always clears these
 const PAC_START = { x:13, y:23 };
-const P2_START  = { x:14, y:23 };
+const P2_START  = { x:21, y:23 };
 const MAX_LIVES = 6;
 
 const SPEED = {
