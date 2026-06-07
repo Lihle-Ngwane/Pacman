@@ -1,22 +1,4 @@
-// ============================================================
-// systems/MazeGenerator.js
-// Procedural maze generation using DFS (recursive backtracker).
-//
-// ALGORITHM:
-// 1. Fill entire 28x30 grid with T_WALL
-// 2. Work on a supergrid (each supercell = 2x2 tiles).
-//    Supercell (sc,sr) maps to tile center (sc*2+1, sr*2+1).
-//    Carve passages between adjacent supercells via DFS —
-//    the wall tile between two cells is set to T_EMPTY.
-// 3. Add random loops by removing extra walls (makes maze
-//    less like a tree, more like a Pac-Man level).
-// 4. Force-overlay fixed structures: borders, ghost house, tunnel.
-// 5. Force spawn tiles empty so Pac-Man and ghosts always have room.
-// 6. Connectivity check: BFS from PAC_START, remove isolated cells.
-// 7. Fill all reachable T_EMPTY cells with T_DOT.
-// 8. Place 4 power pellets near corners.
-// 9. Scatter a few special power-up tiles (speed, freeze, reveal).
-// ============================================================
+
 
 class MazeGenerator {
 

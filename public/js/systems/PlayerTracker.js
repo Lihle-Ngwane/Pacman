@@ -1,20 +1,3 @@
-// ============================================================
-// systems/PlayerTracker.js
-// Watches how the player moves and builds a behavioral profile.
-// Ghost.js reads this profile to adapt targeting.
-//
-// WHAT IT TRACKS:
-//   quadrantTime[0-3]  — how many seconds spent in each quadrant
-//   pelletRushCount    — how many times player ate a pellet within
-//                        2s of a ghost getting close (aggressive)
-//   escapeDir          — most common escape direction after danger
-//   dangerZones        — tiles where player died or was nearly caught
-//
-// WHAT GHOSTS DO WITH IT:
-//   Blinky: after 20s biases target toward player's favourite quadrant
-//   Pinky:  increases lead distance if player is predictable (straight mover)
-//   Clyde:  shrinks his "safe distance" if player tends to ignore him
-// ============================================================
 
 class PlayerTracker {
 

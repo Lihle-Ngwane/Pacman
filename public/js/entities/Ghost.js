@@ -1,21 +1,3 @@
-// ============================================================
-// entities/Ghost.js — with adaptive AI via PlayerTracker
-//
-// ADAPTIVE BEHAVIOUR (kicks in after 30s of data):
-//   Blinky: blends his target between Pac-Man's current tile
-//           and the player's favourite quadrant centre.
-//           Influence grows with PlayerTracker.maturity.
-//   Pinky:  if player is predictable (long straight runs),
-//           increases lead distance from 4 to 6 tiles.
-//   Clyde:  if player is pellet-aggressive, Clyde stays
-//           further away (12 tiles instead of 8).
-//   Inky:   unchanged — his vector calculation already
-//           makes him emergently unpredictable.
-//
-// FREEZE power-up: all ghosts stop moving for PU_DURATION.freeze
-// REVEAL power-up: ghost target tile shown on screen (handled in GameScene)
-// ============================================================
-
 class Ghost {
 
   constructor(scene, type, maze) {

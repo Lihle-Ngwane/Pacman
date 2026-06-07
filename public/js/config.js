@@ -1,7 +1,4 @@
-// ============================================================
-// config.js — All constants. Maze definition removed —
-// mazes are now generated procedurally by MazeGenerator.js
-// ============================================================
+
 
 const TILE       = 20;
 const COLS       = 28;

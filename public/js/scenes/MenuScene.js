@@ -1,7 +1,4 @@
-// ============================================================
-// scenes/MenuScene.js
-// 2 PLAYER is network-only. No same-device multiplayer.
-// ============================================================
+
 
 class MenuScene extends Phaser.Scene {
   constructor() { super({ key: 'MenuScene' }); }

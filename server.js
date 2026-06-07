@@ -1,8 +1,3 @@
-// ============================================================
-// server.js — Pac-Man multiplayer server
-// Serves client files + runs Socket.io game server
-// ============================================================
-
 const express    = require('express');
 const http       = require('http');
 const { Server } = require('socket.io');

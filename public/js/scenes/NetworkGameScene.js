@@ -1,8 +1,4 @@
-// ============================================================
-// scenes/NetworkGameScene.js
-// Online multiplayer — connects via Socket.io.
-// Server sends compact state. Client renders + plays sounds.
-// ============================================================
+
 
 class NetworkGameScene extends Phaser.Scene {
   constructor() { super({ key: 'NetworkGameScene' }); }
@@ -26,7 +22,16 @@ class NetworkGameScene extends Phaser.Scene {
     this._predDirY    = 0;
     this._predMoving  = false;
     this._predicting  = false;
-    this._eliminated  = false;  // this device's player is eliminated
+    this._eliminated    = false;  // this device's player is eliminated
+    // Opponent interpolation state
+    this._oppRenderX    = 0;
+    this._oppRenderY    = 0;
+    this._oppTargetX    = 0;
+    this._oppTargetY    = 0;
+    this._oppAlive      = true;
+    this._oppEliminated = false;
+    this._oppDirX       = 1;
+    this._oppDirY       = 0;
     this._roomCode    = '';
     this._joinInput   = '';
     this._uiGroup     = null;
@@ -64,8 +69,31 @@ class NetworkGameScene extends Phaser.Scene {
     if (this._phase !== 'playing') return;
     this._sendInput();
     this._animatePac(delta);
-    // Client side prediction — move our player locally every frame
+    // Own player — client side prediction
     if (!this._eliminated) this._predictMove(delta / 1000);
+    // Opponent — smooth interpolation toward latest server position
+    this._interpolateOpponent();
+  }
+
+  _interpolateOpponent() {
+    const myIdx  = this._myIndex;
+    const oppIdx = myIdx === 0 ? 1 : 0;
+    const spr    = oppIdx === 0 ? this._p1Sprite : this._p2Sprite;
+    if (!spr?.active) return;
+
+    // Lerp render position toward server target — 0.25 per frame at 60fps
+    // gives smooth movement without lag feeling
+    const LERP = 0.25;
+    this._oppRenderX += (this._oppTargetX - this._oppRenderX) * LERP;
+    this._oppRenderY += (this._oppTargetY - this._oppRenderY) * LERP;
+
+    // Snap if very close to avoid infinite tiny drift
+    if (Math.abs(this._oppRenderX - this._oppTargetX) < 0.5) this._oppRenderX = this._oppTargetX;
+    if (Math.abs(this._oppRenderY - this._oppTargetY) < 0.5) this._oppRenderY = this._oppTargetY;
+
+    spr.setPosition(this._oppRenderX, this._oppRenderY + UI_H);
+    spr.setAlpha(this._oppAlive ? 1 : this._oppEliminated ? 0 : 0.2);
+    if (this._oppDirX !== undefined) this._rotateSprite(spr, this._oppDirX, this._oppDirY);
   }
 
   // ---- ANIMATION ----
@@ -340,14 +368,15 @@ class NetworkGameScene extends Phaser.Scene {
       }
     }
 
-    // Opponent — always use server position directly
+    // Opponent — store server position as target, interpolation runs in update
     if (p[oppIdx]) {
-      const pd  = p[oppIdx];
-      const spr = oppIdx === 0 ? this._p1Sprite : this._p2Sprite;
-      if (spr?.active) {
-        spr.setPosition(pd[0], pd[1] + UI_H).setAlpha(pd[4] ? 1 : pd[5] ? 0 : 0.2);
-        this._rotateSprite(spr, pd[2], pd[3]);
-      }
+      const pd = p[oppIdx];
+      this._oppTargetX   = pd[0];
+      this._oppTargetY   = pd[1];
+      this._oppAlive     = pd[4];
+      this._oppEliminated = pd[5] === 1;
+      this._oppDirX      = pd[2];
+      this._oppDirY      = pd[3];
     }
 
     // Ghosts
@@ -476,6 +505,28 @@ class NetworkGameScene extends Phaser.Scene {
     this._p2Sprite = this.add.image(
       P2_START.x*TILE+TILE/2, P2_START.y*TILE+TILE/2+UI_H, 'pac_open'
     ).setDepth(6).setTint(0x00ffff);
+
+    // Initialise prediction from known start position immediately so the
+    // own sprite never sits frozen waiting for the first server packet
+    const myStart = this._myIndex === 0 ? PAC_START : P2_START;
+    const myStartDirX = this._myIndex === 0 ? -1 : 1;
+    this._predX        = myStart.x * TILE + TILE / 2;
+    this._predY        = myStart.y * TILE + TILE / 2;
+    this._predTileX    = myStart.x;
+    this._predTileY    = myStart.y;
+    this._predDirX     = myStartDirX;
+    this._predDirY     = 0;
+    this._predNextDirX = myStartDirX;
+    this._predNextDirY = 0;
+    this._predMoving   = false;
+    this._predicting   = true;
+
+    // Initialise opponent interpolation targets at opponent start position
+    const oppStart = this._myIndex === 0 ? P2_START : PAC_START;
+    this._oppRenderX = oppStart.x * TILE + TILE / 2;
+    this._oppRenderY = oppStart.y * TILE + TILE / 2;
+    this._oppTargetX = this._oppRenderX;
+    this._oppTargetY = this._oppRenderY;
 
     // "You are" label
     const myColor = this._myIndex===0?'#ffd700':'#00ffff';

@@ -1,8 +1,4 @@
-// ============================================================
-// scenes/GameScene.js
-// Integrates: procedural maze, adaptive AI, 3 power-up types,
-// player tracker, and both normal + multiplayer modes.
-// ============================================================
+
 
 class GameScene extends Phaser.Scene {
   constructor() { super({ key: 'GameScene' }); }

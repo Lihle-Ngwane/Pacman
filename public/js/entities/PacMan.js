@@ -1,8 +1,3 @@
-// ============================================================
-// entities/PacMan.js
-// Added: active power-up state (speed boost from T_SPEED tile).
-// playerIndex: 0=P1 yellow, 1=P2 cyan
-// ============================================================
 
 class PacMan {
 
